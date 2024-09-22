@@ -114,26 +114,55 @@ public class UserBookServlet extends HttpServlet {
     private void renewLoan(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         try {
+            // Get userId and bookId from the session/request
+            Integer userId = (Integer) request.getSession().getAttribute("userId");
+            if (userId == null) {
+                response.sendRedirect("userLogin.jsp?message=Please log in to renew the loan.");
+                return;
+            }
+
             int bookId = Integer.parseInt(request.getParameter("bookId"));
-            int userId = (Integer) request.getSession().getAttribute("userId");
 
+            // Initialize DAO and fetch active loan details
             UserBookDAO userBookDAO = new UserBookDAO(connection);
-            userBookDAO.renewLoan(userId, bookId);
+            Loan activeLoan = userBookDAO.getActiveLoanDetails(userId, bookId);
 
-            response.sendRedirect("success.jsp");
+            if (activeLoan == null) {
+                response.sendRedirect("listBooks.jsp?message=No active loan found for this book.");
+                return;
+            }
+
+            // Set the current due date
+            Date currentDueDate = activeLoan.getDueDate();
+            request.setAttribute("currentDueDate", currentDueDate);
+
+            // If a new due date is provided (for actual renewal)
+            String newDueDateStr = request.getParameter("newDueDate");
+            if (newDueDateStr != null && !newDueDateStr.isEmpty()) {
+                boolean updated = userBookDAO.updateLoanDueDate(userId, bookId, newDueDateStr);
+
+                if (updated) {
+                    response.sendRedirect("loanSuccess.jsp?message=Loan renewed successfully! New due date: " + newDueDateStr);
+                } else {
+                    response.sendRedirect("renewLoan.jsp?message=Failed to renew loan.");
+                }
+            } else {
+                // If the new due date is not provided, simply show the renewal form with current due date
+                request.getRequestDispatcher("renewLoan.jsp").forward(request, response);
+            }
         } catch (NumberFormatException | SQLException e) {
             handleException(request, response, e);
         }
     }
+
 
     private void returnBook(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         int bookId;
 
         try {
-            // Parse the book ID from the request
             bookId = Integer.parseInt(request.getParameter("bookId"));
-            Integer userId = (Integer) request.getSession().getAttribute("userId"); // Use Integer to allow null
+            Integer userId = (Integer) request.getSession().getAttribute("userId");
 
             if (userId == null) {
                 response.sendRedirect("userLogin.jsp?message=Please log in to return a book");
@@ -152,13 +181,13 @@ public class UserBookServlet extends HttpServlet {
             }
         } catch (NumberFormatException e) {
             response.sendRedirect("listBooks.jsp?message=Invalid book ID format.");
-            e.printStackTrace(); // Log the exception for debugging
+            e.printStackTrace();
         } catch (SQLException e) {
             response.sendRedirect("listBooks.jsp?message=Database error occurred.");
-            e.printStackTrace(); // Log the exception for debugging
+            e.printStackTrace();
         } catch (Exception e) {
             response.sendRedirect("listBooks.jsp?message=Unexpected error occurred.");
-            e.printStackTrace(); // Log the exception for debugging
+            e.printStackTrace();
         }
     }
 

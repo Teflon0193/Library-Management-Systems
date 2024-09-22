@@ -33,7 +33,7 @@ public class UserBookDAO {
 
     public Set<Integer> getBorrowedBooksByUser(int userId) throws SQLException {
         Set<Integer> borrowedBookIds = new HashSet<>();
-        String sql = "SELECT bookId FROM loan WHERE userId = ?";
+        String sql = "SELECT bookId FROM loan WHERE userId = ? AND status != 'returned'";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -44,6 +44,7 @@ public class UserBookDAO {
         }
         return borrowedBookIds;
     }
+
 
 
     public boolean borrowBook(int userId, int bookId, Date borrowDate, Date returnDate) throws SQLException {
@@ -77,28 +78,38 @@ public class UserBookDAO {
         }
     }
 
+    public boolean updateLoanDueDate(Integer userId, Integer bookId, String newDueDate) {
+        String query = "UPDATE loan SET dueDate = ? WHERE userId = ? AND bookId = ? AND status = 'borrowed'";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setDate(1, java.sql.Date.valueOf(newDueDate));
+            stmt.setInt(2, userId);
+            stmt.setInt(3, bookId);
+            int rowsUpdated = stmt.executeUpdate();
+            return rowsUpdated > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+
     public boolean returnBook(int userId, int bookId) throws SQLException {
-        String query = "UPDATE loan SET returnDate = NOW(), status = 'returned' WHERE bookId = ? AND userId = ? AND status = 'borrowed'";
-        int rowsAffected; // Variable to track rows affected
+        String query = "UPDATE loan SET returnDate = NOW(), status = 'returned' WHERE bookId = ? AND userId = ? AND status = 'Accepted'";
+        int rowsAffected;
 
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
             pstmt.setInt(1, bookId);
             pstmt.setInt(2, userId);
-            rowsAffected = pstmt.executeUpdate(); // Execute the update and store the result
+            rowsAffected = pstmt.executeUpdate();
         }
 
-        // Only proceed to update the book if the loan was successfully updated
         if (rowsAffected > 0) {
             // Increase available copies of the book
-            String updateBookQuery = "UPDATE book SET availableCopies = availableCopies + 1 WHERE id = ?";
-            try (PreparedStatement pstmt = connection.prepareStatement(updateBookQuery)) {
-                pstmt.setInt(1, bookId);
-                pstmt.executeUpdate();
-            }
-            return true; // Return true if the book was successfully returned
+            increaseAvailableCopies(bookId);
+            return true;
         }
 
-        return false; // Return false if no rows were affected (i.e., book was not found or not borrowed)
+        return false;
     }
 
 
@@ -146,6 +157,24 @@ public class UserBookDAO {
         }
         return books;
     }
+
+    public Loan getActiveLoanDetails(int userId, int bookId) throws SQLException {
+        String query = "SELECT * FROM loan WHERE userId = ? AND bookId = ? AND status = 'borrowed'";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, userId);
+            stmt.setInt(2, bookId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    Loan loan = new Loan();
+                    loan.setDueDate(rs.getDate("dueDate"));
+                    // Set other loan details if necessary
+                    return loan;
+                }
+            }
+        }
+        return null; // No active loan found
+    }
+
 
     public boolean decreaseAvailableCopies(int bookId) throws SQLException {
         String query = "UPDATE book SET availableCopies = availableCopies - 1 WHERE id = ? AND availableCopies > 0";

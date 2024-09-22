@@ -12,6 +12,20 @@ public class Loan {
     private double penalty;
     private String status;
 
+
+    public Loan() {
+    }
+    public Loan(int id, int bookId, int userId, Date borrowDate, Date returnDate, Date dueDate, double penalty, String status) {
+        this.id = id;
+        this.bookId = bookId;
+        this.userId = userId;
+        this.borrowDate = borrowDate;
+        this.returnDate = returnDate;
+        this.dueDate = dueDate;
+        this.penalty = penalty;
+        this.status = status;
+    }
+
     // Getters and Setters
     public int getId() {
         return id;

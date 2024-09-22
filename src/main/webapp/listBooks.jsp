@@ -114,7 +114,7 @@
         </tr>
         <%
             Connection connection = (Connection) application.getAttribute("DBConnection");
-            Integer userId = (Integer) session.getAttribute("userId"); // Using the implicit session variable
+            Integer userId = (Integer) session.getAttribute("userId");
 
             if (connection != null && userId != null) {
                 UserBookDAO userBookDAO = new UserBookDAO(connection);
@@ -125,6 +125,7 @@
 
                 for (Book book : books) {
                     boolean isBorrowed = borrowedBooks.contains(book.getId());
+                    boolean isReturned = !isBorrowed && "returned".equalsIgnoreCase(book.getStatus());
         %>
         <tr>
             <td><%= book.getTitle() %></td>
@@ -142,17 +143,22 @@
                     </form>
                 <% } else if (isBorrowed) { %>
                     <!-- If the book is borrowed by the user, show renew and return options -->
-                    <form action="renewLoan" method="post" style="display: inline;">
-                        <input type="hidden" name="bookId" value="<%= book.getId() %>">
-                        <button type="submit">Renew</button>
+                    <form action="renewLoan.jsp" method="get" style="display: inline;">
+                         <input type="hidden" name="bookId" value="<%= book.getId() %>">
+                         <button type="submit">Renew</button>
                     </form>
 
-                   <form action="userBook" method="post" style="display: inline;">
-                       <input type="hidden" name="action" value="return">
-                       <input type="hidden" name="bookId" value="<%= book.getId() %>">
-                       <button type="submit" class="black-button">Return</button>
-                   </form>
-
+                    <form action="userBook" method="post" style="display: inline;">
+                        <input type="hidden" name="action" value="return">
+                        <input type="hidden" name="bookId" value="<%= book.getId() %>">
+                        <button type="submit" class="black-button">Return</button>
+                    </form>
+                <% } else if (isReturned) { %>
+                    <!-- If the book was returned, show the borrow option again -->
+                    <form action="borrowBookPage.jsp" method="get" style="display: inline;">
+                        <input type="hidden" name="bookId" value="<%= book.getId() %>">
+                        <button type="submit">Borrow</button>
+                    </form>
                 <% } %>
             </td>
         </tr>
