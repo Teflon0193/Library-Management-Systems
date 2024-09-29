@@ -159,15 +159,20 @@ public class UserBookDAO {
     }
 
     public Loan getActiveLoanDetails(int userId, int bookId) throws SQLException {
-        String query = "SELECT * FROM loan WHERE userId = ? AND bookId = ? AND status = 'borrowed'";
+        String query = "SELECT * FROM loan WHERE userId = ? AND bookId = ? AND (status = 'pending' OR status = 'Accepted')";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, userId);
             stmt.setInt(2, bookId);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     Loan loan = new Loan();
-                    loan.setDueDate(rs.getDate("dueDate"));
-                    // Set other loan details if necessary
+                    loan.setId(rs.getInt("id"));
+                    loan.setUserId(rs.getInt("userId"));
+                    loan.setBookId(rs.getInt("bookId"));
+                    loan.setBorrowDate(rs.getDate("borrowDate"));
+                    loan.setReturnDate(rs.getDate("returnDate"));
+                    loan.setDueDate(rs.getDate("dueDate")); // This should capture the due date
+                    loan.setStatus(rs.getString("status"));
                     return loan;
                 }
             }

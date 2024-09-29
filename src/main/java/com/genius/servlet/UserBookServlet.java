@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
@@ -113,6 +114,8 @@ public class UserBookServlet extends HttpServlet {
 
     private void renewLoan(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        Date currentDueDate = null;
         try {
             // Get userId and bookId from the session/request
             Integer userId = (Integer) request.getSession().getAttribute("userId");
@@ -122,10 +125,11 @@ public class UserBookServlet extends HttpServlet {
             }
 
             int bookId = Integer.parseInt(request.getParameter("bookId"));
-
             // Initialize DAO and fetch active loan details
             UserBookDAO userBookDAO = new UserBookDAO(connection);
             Loan activeLoan = userBookDAO.getActiveLoanDetails(userId, bookId);
+
+            System.out.println("Active Loan: " + activeLoan);
 
             if (activeLoan == null) {
                 response.sendRedirect("listBooks.jsp?message=No active loan found for this book.");
@@ -133,8 +137,11 @@ public class UserBookServlet extends HttpServlet {
             }
 
             // Set the current due date
-            Date currentDueDate = activeLoan.getDueDate();
-            request.setAttribute("currentDueDate", currentDueDate);
+            String currentDueDateString = (activeLoan.getDueDate() != null)
+                    ? new SimpleDateFormat("yyyy-MM-dd").format(activeLoan.getDueDate())
+                    : "N/A";
+            request.setAttribute("currentDueDate", currentDueDateString);
+
 
             // If a new due date is provided (for actual renewal)
             String newDueDateStr = request.getParameter("newDueDate");
@@ -144,6 +151,7 @@ public class UserBookServlet extends HttpServlet {
                 if (updated) {
                     response.sendRedirect("loanSuccess.jsp?message=Loan renewed successfully! New due date: " + newDueDateStr);
                 } else {
+                    String dueDateStr = dateFormat.format(currentDueDate);
                     response.sendRedirect("renewLoan.jsp?message=Failed to renew loan.");
                 }
             } else {

@@ -1,6 +1,10 @@
 <%@ page import="java.util.Date" %>
 <%@ page import="java.text.SimpleDateFormat" %>
-<%@ page import="com.genius.dao.UserBookDAO" %>
+<%@ page import="java.text.ParseException" %>
+<%@ page import="java.util.Calendar" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
+
 <%
     // Check if the user is logged in
     if (session == null || session.getAttribute("userId") == null) {
@@ -11,20 +15,39 @@
     Integer userId = (Integer) session.getAttribute("userId");
     Integer bookId = Integer.parseInt(request.getParameter("bookId"));
 
-    // Get current due date passed from the servlet
-    Date currentDueDate = (Date) request.getAttribute("currentDueDate");
+    // Get due date passed as a request parameter
+    String dueDateStr = request.getParameter("dueDate");
+    Date dueDate = null;
 
-    // Format the due date
-    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-    String formattedDueDate = (currentDueDate != null) ? dateFormat.format(currentDueDate) : "N/A";
+    // If due date string is not null, convert it to a Date object
+    if (dueDateStr != null && !dueDateStr.isEmpty()) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        try {
+            dueDate = dateFormat.parse(dueDateStr);
+        } catch (ParseException e) {
+            e.printStackTrace();
+            dueDate = null; // In case of error, set to null
+        }
+    }
+
+    // Get the current date for setting the new due date
+    Calendar calendar = Calendar.getInstance();
+    calendar.setTime(dueDate != null ? dueDate : new Date());
+    // Set the maximum new due date to one month from today
+    Calendar maxDate = (Calendar) calendar.clone();
+    maxDate.add(Calendar.MONTH, 1);
+
+    // Format the due date for display
+    String formattedDueDate = (dueDate != null) ? new SimpleDateFormat("yyyy-MM-dd").format(dueDate) : "N/A";
 %>
+
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Renew Loan</title>
+    <title>Renouveler le prêt</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -68,16 +91,19 @@
     </style>
 </head>
 <body>
-    <h1>Renew Loan</h1>
-    <p>Current Due Date: <%= formattedDueDate %></p> <!-- Display the current due date -->
+    <h1>Choose New Date</h1>
+      <!-- Input for new due date -->
+         <form action="userBook" method="post">
+             <input type="hidden" name="action" value="renew">
+             <input type="hidden" name="bookId" value="<%= bookId %>">
+             <label for="newDueDate">New Due Date:</label>
+             <input type="date" name="newDueDate" id="newDueDate"
+                    min="<%= new SimpleDateFormat("yyyy-MM-dd").format(calendar.getTime()) %>"
+                    max="<%= new SimpleDateFormat("yyyy-MM-dd").format(maxDate.getTime()) %>"
+                    required>
+             <button type="submit">Renouveler</button>
+         </form>
 
-    <form action="userBook" method="post">
-        <input type="hidden" name="action" value="renew">
-        <input type="hidden" name="bookId" value="<%= bookId %>"> <!-- Use the local variable -->
-        <label for="newDueDate">New Due Date:</label>
-        <input type="date" name="newDueDate" required>
-        <button type="submit">Renew</button>
-    </form>
-    <a href="listBooks.jsp" class="back-link">Back to Book List</a>
+    <a href="listBooks.jsp" class="back-link">Retour à la liste des livres</a>
 </body>
 </html>
